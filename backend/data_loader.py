@@ -6,11 +6,141 @@ from langchain_core.documents import Document
 import logging
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
+from pymongo import MongoClient
+import os
 
 logger = logging.getLogger(__name__)
 
 
 class DataLoader:
+    
+    @staticmethod
+    def load_from_mongodb(collection_name: str = None, db_name: str = "vtfinal", mongo_url: str = None) -> List[Document]:
+        try:
+            if not mongo_url:
+                mongo_url = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+            
+            logger.info(f"Connecting to MongoDB at {mongo_url}, database: {db_name}")
+            client = MongoClient(mongo_url, serverSelectionTimeoutMS=5000)
+            # Test connection
+            client.admin.command('ping')
+            logger.info("Successfully pinged MongoDB")
+            db = client[db_name]
+            
+            if collection_name:
+                collections_to_load = [collection_name]
+            else:
+                collections_to_load = db.list_collection_names()
+                logger.info(f"Found collections in {db_name}: {collections_to_load}")
+            
+            documents = []
+            
+            for coll_name in collections_to_load:
+                collection = db[coll_name]
+                cursor = collection.find({})
+                
+                for idx, item in enumerate(cursor):
+                    if '_id' in item:
+                        item['_id'] = str(item['_id'])
+                    
+                    content = DataLoader._dict_to_content(item)
+                    
+                    # Make sure all metadata values are strings or primitives supported by FAISS
+                    metadata = {
+                        "source": f"mongodb:/{db_name}/{coll_name}",
+                        "item_number": idx,
+                        **DataLoader._flatten_dict(item)
+                    }
+                    
+                    doc = Document(
+                        page_content=content,
+                        metadata=metadata
+                    )
+                    documents.append(doc)
+            
+            logger.info(f"Loaded {len(documents)} documents from MongoDB {db_name}")
+            return documents
+            
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"Error loading MongoDB: {error_msg}")
+            
+            if "10061" in error_msg or "Connection refused" in error_msg:
+                detailed_msg = f"Network Connection Refused at {mongo_url}. Remote database is either offline or blocking access. (Error 10061)"
+            elif "timeout" in error_msg.lower():
+                detailed_msg = f"Connection Timeout at {mongo_url}. Check if the target IP is reachable and firewall is open (Port 27017)."
+            else:
+                detailed_msg = f"Failed to load data from MongoDB: {error_msg}"
+                
+            raise ValueError(detailed_msg)
+
+    @staticmethod
+    def load_from_postgres(connection_string: str, table_names: List[str] = None) -> List[Document]:
+        try:
+            import psycopg2
+            from psycopg2.extras import RealDictCursor
+        except ImportError:
+            raise ImportError("psycopg2 is not installed. Please install it using `pip install psycopg2-binary`")
+            
+        try:
+            logger.info(f"Connecting to PostgreSQL Database...")
+            conn = psycopg2.connect(connection_string)
+            cursor = conn.cursor(cursor_factory=RealDictCursor)
+            
+            if not table_names:
+                # Fetch all public tables if no specific tables are requested
+                cursor.execute("""
+                    SELECT table_name 
+                    FROM information_schema.tables 
+                    WHERE table_schema = 'public'
+                """)
+                table_names = [row['table_name'] for row in cursor.fetchall()]
+                logger.info(f"Automatically discovered tables: {table_names}")
+                
+            documents = []
+            
+            for table_name in table_names:
+                cursor.execute(f"SELECT * FROM {table_name}")
+                rows = cursor.fetchall()
+                
+                for idx, row in enumerate(rows):
+                    row_dict = dict(row)
+                    # Convert dates or uuids to strings safely
+                    for k, v in row_dict.items():
+                        row_dict[k] = str(v)
+
+                    content = DataLoader._dict_to_content(row_dict)
+                    
+                    metadata = {
+                        "source": f"postgresql:/{table_name}",
+                        "item_number": idx,
+                        **DataLoader._flatten_dict(row_dict)
+                    }
+                    
+                    doc = Document(
+                        page_content=content,
+                        metadata=metadata
+                    )
+                    documents.append(doc)
+            
+            cursor.close()
+            conn.close()
+            
+            logger.info(f"Loaded {len(documents)} documents from PostgreSQL")
+            return documents
+
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"Error loading from PostgreSQL: {error_msg}")
+            
+            if "10061" in error_msg or "Connection refused" in error_msg:
+                detailed_msg = f"PostgreSQL Connection Refused at your target IP. Ensure the database is running and the IP address is allowed in pg_hba.conf."
+            elif "authentication failed" in error_msg.lower():
+                detailed_msg = "PostgreSQL Identity/Password Mismatch. Ensure the username and password in your database_url are correct."
+            else:
+                detailed_msg = f"PostgreSQL protocol error: {error_msg}"
+                
+            raise ValueError(detailed_msg)
     
     @staticmethod
     def load_from_csv(file_path: str) -> List[Document]:

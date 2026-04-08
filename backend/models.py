@@ -8,6 +8,25 @@ class DataSourceType(str, Enum):
     CSV = "csv"
     JSON = "json"
     URL = "url"
+    MONGODB = "mongodb"
+    POSTGRESQL = "postgresql"
+
+
+class ExternalClientAuth(BaseModel):
+    api_key: str = Field(..., description="The client's public API key")
+    password: str = Field(..., description="The client's secret password")
+
+
+class ExternalTokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class ExternalChatRequest(BaseModel):
+    database_name: str = Field(..., description="Target database name")
+    message: str = Field(..., description="User's message")
+    database_url: Optional[str] = Field(None, description="Optional DB Connection String (defaults to registered default)")
+
 
 
 class AssistantCreateRequest(BaseModel):

@@ -13,6 +13,10 @@ class VectorStoreManager:
     def __init__(self):
         logger.info("Initializing HuggingFace embeddings...")
         
+        # Prevent HuggingFace from hanging indefinitely on network checks if ISP blocks/throttles HF Hub
+        os.environ["HF_HUB_OFFLINE"] = "1"
+        os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
+        
         self.embeddings = HuggingFaceEmbeddings(
             model_name="all-MiniLM-L6-v2",
             model_kwargs={'device': 'cpu'},
@@ -95,8 +99,7 @@ class VectorStoreManager:
         try:
             vector_store = FAISS.load_local(
                 path, 
-                self.embeddings,
-                allow_dangerous_deserialization=True
+                self.embeddings
             )
             logger.info(f"Vector store loaded from {path}")
             return vector_store

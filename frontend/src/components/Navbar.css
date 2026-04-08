@@ -1,0 +1,47 @@
+/* --- Premium Logo Styling --- */
+.nav-logo.premium-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.nav-logo.premium-logo:hover {
+    transform: translateY(-1px);
+}
+
+.logo-mark {
+    width: 24px;
+    height: 24px;
+    border: 2px solid #38bdf8;
+    border-radius: 6px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.1) 0%, transparent 100%);
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+}
+
+.logo-dot {
+    width: 6px;
+    height: 6px;
+    background-color: #f8fafc;
+    border-radius: 50%;
+    box-shadow: 0 0 8px #ffffff;
+}
+
+.premium-logo .logo-text {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #f8fafc;
+    letter-spacing: -0.02em;
+    display: flex;
+    gap: 6px;
+}
+
+.premium-logo .logo-text-light {
+    color: #94a3b8;
+    font-weight: 400;
+}

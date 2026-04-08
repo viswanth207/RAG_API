@@ -1,0 +1,202 @@
+/* Premium High-Contrast AI Hub Styles */
+:root {
+    --primary-neon: #6366f1;
+    --secondary-neon: #06b6d4;
+    --bg-obsidian: #020617;
+    --card-glass: rgba(15, 23, 42, 0.85);
+    --border-glass: rgba(255, 255, 255, 0.15);
+    --text-high: #ffffff;
+    --text-dim: #94a3b8;
+}
+
+.api-gateway-wrapper {
+    background-color: var(--bg-obsidian);
+    background-image: 
+        radial-gradient(circle at 0% 0%, rgba(99, 102, 241, 0.1) 0%, transparent 40%),
+        radial-gradient(circle at 100% 100%, rgba(6, 182, 212, 0.1) 0%, transparent 40%);
+    min-height: 100vh;
+    padding: 80px 40px;
+    color: var(--text-high);
+}
+
+.gateway-container {
+    max-width: 1500px;
+    margin: 0 auto;
+}
+
+.gateway-header {
+    margin-bottom: 48px;
+}
+
+.gateway-title {
+    font-size: 3.5rem;
+    font-weight: 900;
+    letter-spacing: -0.01em;
+    background: linear-gradient(to right, #fff, var(--primary-neon));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 12px;
+}
+
+.gateway-subtitle {
+    color: var(--text-dim);
+    font-size: 1.2rem;
+    max-width: 600px;
+}
+
+.gateway-grid {
+    display: grid;
+    grid-template-columns: 500px 1fr;
+    gap: 40px;
+}
+
+.glass-card {
+    background: var(--card-glass);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border-glass);
+    border-radius: 24px;
+    padding: 40px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+    transition: all 0.3s ease;
+}
+
+.glass-card:hover {
+    border-color: var(--primary-neon);
+    transform: translateY(-4px);
+    box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.8), 0 0 20px rgba(99, 102, 241, 0.1);
+}
+
+.card-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin-bottom: 32px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.modern-label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+}
+
+.modern-input {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-glass);
+    border-radius: 12px;
+    padding: 16px 18px;
+    color: #fff;
+    font-size: 1rem;
+    margin-bottom: 24px;
+    transition: all 0.3s ease;
+}
+
+.modern-input:focus {
+    outline: none;
+    border-color: var(--primary-neon);
+    background: rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 0 1px var(--primary-neon);
+}
+
+.action-btn {
+    width: 100%;
+    background: linear-gradient(135deg, var(--primary-neon) 0%, var(--secondary-neon) 100%);
+    color: #fff;
+    border: none;
+    border-radius: 14px;
+    padding: 18px;
+    font-size: 1.1rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+}
+
+.action-btn:hover {
+    filter: brightness(1.1);
+    box-shadow: 0 15px 30px rgba(99, 102, 241, 0.5);
+}
+
+.db-selector {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.db-btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border-glass);
+    background: transparent;
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.db-btn.active.mongodb { background: rgba(16, 185, 129, 0.2); border-color: #10b981; color: #10b981; }
+.db-btn.active.postgresql { background: rgba(51, 103, 145, 0.2); border-color: #336791; color: #336791; }
+
+.code-block {
+    background: #000;
+    border-radius: 18px;
+    padding: 60px 24px 24px;
+    margin-top: 32px;
+    overflow-x: auto;
+    border: 1px solid var(--border-glass);
+    position: relative;
+}
+
+.code-block::before {
+    content: \"PRO-GATEWAY-V1\";
+    position: absolute;
+    top: 24px;
+    left: 24px;
+    font-family: 'JetBrains Mono';
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: var(--primary-neon);
+    letter-spacing: 0.3em;
+}
+
+.code-block code {
+    color: #cbd5e1;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+.copy-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-glass);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.copy-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-1px);
+}
+
+@media (max-width: 1024px) {
+    .gateway-grid {
+        grid-template-columns: 1fr;
+    }
+}

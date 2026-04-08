@@ -12,11 +12,11 @@ logger = logging.getLogger(__name__)
 
 
 class AssistantEngine:
-    
     def __init__(self, groq_api_key: str, model_name: str = "llama-3.3-70b-versatile"):
         self.groq_api_key = groq_api_key
         self.model_name = model_name
         self.vector_store_manager = VectorStoreManager()
+        logger.info(f"🚀 AI Brain Core ONLINE: Initialized with model {self.model_name}")
         
         self.llm = ChatGroq(
             api_key=groq_api_key,
@@ -71,6 +71,65 @@ class AssistantEngine:
             logger.error(f"Error creating assistant: {str(e)}")
             raise
     
+    async def chat_stream(
+        self,
+        assistant_config: Dict[str, Any],
+        user_message: str
+    ):
+        try:
+            vector_store = assistant_config["vector_store"]
+            system_instructions = assistant_config["system_instructions"]
+            
+            logger.info(f"Processing chat stream for assistant: {assistant_config['name']}")
+            
+            # 1. Similarity Search
+            is_comparison = any(word in user_message.lower() for word in [
+                'highest', 'lowest', 'best', 'worst', 'maximum', 'minimum', 
+                'most', 'least', 'compare', 'all', 'which', 'many', 'count', 'total'
+            ])
+            k_docs = 25 if is_comparison else 15
+            
+            logger.info(f"Performing similarity search for: {user_message[:50]}...")
+            
+            relevant_docs = self.vector_store_manager.similarity_search(
+                vector_store=vector_store,
+                query=user_message,
+                k=k_docs
+            )
+            
+            logger.info(f"Found {len(relevant_docs) if relevant_docs else 0} relevant documents")
+            
+            if not relevant_docs:
+                import json
+                yield json.dumps({"type": "content", "data": "I don't have enough information to answer that question based on the provided data."}) + "\n"
+                return
+
+            # 2. Build Prompt
+            context = self._build_context(relevant_docs)
+            prompt = self._build_prompt(system_instructions, context, user_message, relevant_docs)
+            
+            # 3. Stream Response
+            import json
+            
+            # First, send metadata about sources
+            sources_info = [
+                {
+                    "content": doc.page_content[:200] + "...",
+                    "metadata": doc.metadata
+                }
+                for doc in relevant_docs
+            ]
+            yield json.dumps({"type": "sources", "data": sources_info}) + "\n"
+            
+            # Then stream the content
+            async for chunk in self.llm.astream(prompt):
+                if chunk.content:
+                    yield json.dumps({"type": "content", "data": chunk.content}) + "\n"
+            
+        except Exception as e:
+            logger.error(f"Error during chat stream: {str(e)}")
+            yield json.dumps({"type": "error", "data": str(e)}) + "\n"
+
     def chat(
         self,
         assistant_config: Dict[str, Any],
@@ -82,8 +141,11 @@ class AssistantEngine:
             
             logger.info(f"Processing chat for assistant: {assistant_config['name']}")
             
-            is_comparison = any(word in user_message.lower() for word in ['highest', 'lowest', 'best', 'worst', 'maximum', 'minimum', 'most', 'least', 'compare', 'all', 'which'])
-            k_docs = 30 if is_comparison else 8
+            is_comparison = any(word in user_message.lower() for word in [
+                'highest', 'lowest', 'best', 'worst', 'maximum', 'minimum', 
+                'most', 'least', 'compare', 'all', 'which', 'many', 'count', 'total'
+            ])
+            k_docs = 100 if is_comparison else 15
             
             relevant_docs = self.vector_store_manager.similarity_search(
                 vector_store=vector_store,
@@ -138,17 +200,16 @@ class AssistantEngine:
         
         instructions.append(
             "\nCRITICAL RESPONSE RULES:\n"
-            "- You MUST ONLY answer questions based on the provided context/data\n"
-            "- If the question is NOT related to the provided data, respond: 'I can only answer questions about the information provided in this dataset. Your question is outside my knowledge base.'\n"
-            "- NEVER use general knowledge or external information\n"
-            "- If the data doesn't contain the answer, say: 'I don't have information about that in the provided data.'\n"
-            "\nRESPONSE FORMAT:\n"
-            "- Write like a knowledgeable expert, NOT like someone analyzing documents\n"
-            "- ABSOLUTELY NO mentions of 'Source 1', 'Source 2', 'the context', 'I examined', 'I found', etc.\n"
-            "- State facts directly in smooth paragraphs\n"
-            "- Example WRONG: 'According to Source 3, the CEO is John'\n"
-            "- Example RIGHT: 'The CEO is John'\n"
-            "- Be direct, concise, and natural"
+            "- You MUST answer questions based on the provided context/data.\n"
+            "- If a user asks for a recommendation or suggestion, analyze the data to find the best matches and explain your reasoning based on the values present.\n"
+            "- If the question is COMPLETELY unrelated to the dataset (e.g. asking about weather when the data is about cars), politely explain that you don't have information on that topic in your current knowledge base.\n"
+            "- NEVER use general knowledge or external information not present in the files.\n"
+            "\nRESPONSE FORMAT & STYLE:\n"
+            "- Tone: Polished, professional, and executive (Senior Consultant style).\n"
+            "- Formatting: Use Markdown (bolding, bullet points, numbered lists) for clarity.\n"
+            "- Organization: If the answer is complex, use clear section headings (e.g., ### Summary).\n"
+            "- ABSOLUTELY NO mentions of 'Source 1', 'the context', or 'according to the data'.\n"
+            "- Speak naturally, directly, and with total confidence."
         )
         
         if enable_statistics:
@@ -194,6 +255,11 @@ class AssistantEngine:
         
         is_structured_data = False
         is_website_data = False
+        is_comparison_query = any(word in user_message.lower() for word in [
+            'highest', 'lowest', 'best', 'worst', 'maximum', 'minimum', 
+            'most', 'least', 'which', 'top', 'bottom', 'largest', 'smallest',
+            'greatest', 'biggest'
+        ])
         
         if documents:
             for doc in documents[:3]:
@@ -209,13 +275,22 @@ class AssistantEngine:
             answering_instructions = """Answer the user's question directly and naturally.
 Write in clear paragraphs as if you're a knowledgeable expert explaining the topic.
 Focus on providing useful information without meta-commentary."""
-        elif is_structured_data:
-            answering_instructions = """CRITICAL: For comparison queries (highest, lowest, best, worst, etc.):
-1. Examine EVERY source systematically
-2. Compare all values for the metric
-3. State the actual maximum/minimum found
+        elif is_structured_data and is_comparison_query:
+            answering_instructions = """⚠️ CRITICAL NUMERICAL COMPARISON INSTRUCTIONS ⚠️
 
-For other queries: Provide clear, direct answers based on the data.
+You MUST follow these steps internally:
+1. EXTRACT all relevant values from every source.
+2. CONVERT all values to numbers for accurate comparison.
+3. IDENTIFY the true answer (highest, lowest, etc.).
+
+OUTPUT RULES:
+- Provide the final answer DIRECTLY and naturally.
+- DO NOT list out every value you extracted.
+- DO NOT show your step-by-step comparison logic (e.g., "First I looked at X, then Y").
+- Just state the result: "Based on the data, the Toyota Corolla (33.9 mpg) and Fiat 128 (32.4 mpg) have the highest mileage."
+- Be concise and professional."""
+        elif is_structured_data:
+            answering_instructions = """Provide clear, direct answers based on the data.
 If asked practical questions beyond the data, offer helpful advice."""
         else:
             answering_instructions = """Examine the sources carefully and provide a clear, direct answer.
