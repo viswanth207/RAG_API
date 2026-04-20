@@ -35,6 +35,11 @@ MONGODB_URL = os.getenv("MONGODB_URL")
 client = AsyncIOMotorClient(MONGODB_URL)
 db = client.dynamic_assistant_db
 
+# Models
+class AdminAuth(BaseModel):
+    username: str
+    password: str
+
 # Ensure paths are absolute relative to this file
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DIST_DIR = os.path.join(BASE_DIR, "frontend", "dist")
