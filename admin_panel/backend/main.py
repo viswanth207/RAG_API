@@ -8,6 +8,12 @@ from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel
 
+import os
+import sys
+
+# Ensure the local directory is in the path for imports
+sys.path.append(os.path.dirname(__file__))
+
 from auth_utils import get_password_hash, verify_password, create_access_token
 
 load_dotenv()
