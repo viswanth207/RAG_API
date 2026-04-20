@@ -14,7 +14,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("uvicorn.error")
 logging.getLogger("httpx").setLevel(logging.INFO)
 logging.getLogger("backend").setLevel(logging.INFO)
-
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -152,17 +151,9 @@ FRONTEND_DEV_DIR = "frontend"
 if os.path.exists(FRONTEND_BUILD_DIR):
     # Production: Serve React build
     app.mount("/static", StaticFiles(directory=os.path.join(FRONTEND_BUILD_DIR, "static")), name="static")
-    
-    @app.get("/")
-    async def serve_frontend():
-        return FileResponse(os.path.join(FRONTEND_BUILD_DIR, "index.html"))
 else:
     # Development: Serve old HTML files
     app.mount("/static", StaticFiles(directory=FRONTEND_DEV_DIR), name="static")
-    
-    @app.get("/")
-    async def serve_frontend():
-        return FileResponse(os.path.join(FRONTEND_DEV_DIR, "index.html"))
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -772,6 +763,16 @@ async def get_assistant_chat_history(
 
 
 
+@app.get("/{full_path:path}")
+async def serve_frontend_catchall(full_path: str):
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="API route not found")
+        
+    serve_dir = FRONTEND_BUILD_DIR if os.path.exists(FRONTEND_BUILD_DIR) else FRONTEND_DEV_DIR
+    html_path = os.path.join(serve_dir, "index.html")
+    if os.path.exists(html_path):
+        return FileResponse(html_path)
+    raise HTTPException(status_code=404, detail="Frontend not built")
 
 if __name__ == "__main__":
     import uvicorn
