@@ -161,3 +161,8 @@ async def get_api_client_by_key(api_key: str) -> Optional[dict]:
         return client_doc
     return None
 
+async def save_api_audit_log(log_data: dict):
+    """Save an API audit log entry to the database"""
+    db = get_database()
+    await db.api_audit_logs.insert_one(log_data)
+

@@ -76,13 +76,49 @@ app.add_middleware(
 # Neural Protocol Management: Handle security, logging, and errors in a single high-performance block
 @app.middleware("http")
 async def neural_protocol_middleware(request, call_next):
+    import time
+    from backend.database.crud import save_api_audit_log
+    
+    start_time = time.time()
     try:
         # Pre-execution tracer
-        if "external" in request.url.path:
+        is_external = "external" in request.url.path
+        if is_external:
             logger.info(f"🛰️ INCOMING EXTERNAL LINK: {request.method} {request.url.path} from {request.client.host if request.client else 'Unknown'}")
             
         response = await call_next(request)
         
+        # Log external calls
+        if is_external:
+            latency = (time.time() - start_time) * 1000
+            
+            # Use specific API key if possible, otherwise use generic identifier
+            # (In a real scenario, we'd extract this from the token or request body)
+            api_key = "unauthenticated"
+            if "Authorization" in request.headers:
+                api_key = "bearer_token_used" 
+            
+            log_entry = {
+                "timestamp": datetime.utcnow(),
+                "api_key": api_key,
+                "endpoint": request.url.path,
+                "method": request.method,
+                "message_length": int(request.headers.get("content-length", 0)),
+                "status_code": response.status_code,
+                "latency_ms": latency,
+                "metadata": {
+                    "ip": request.client.host if request.client else "unknown",
+                    "user_agent": request.headers.get("user-agent", "unknown")
+                }
+            }
+            # Background task to avoid blocking the response
+            from fastapi import BackgroundTasks
+            bg_tasks = BackgroundTasks()
+            bg_tasks.add_task(save_api_audit_log, log_entry)
+            # Actually, to keep it simple and reliable in middleware:
+            import asyncio
+            asyncio.create_task(save_api_audit_log(log_entry))
+
         # Mandatory Security Headers
         response.headers["Access-Control-Allow-Private-Network"] = "true"
         return response
