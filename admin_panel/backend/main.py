@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 from dotenv import load_dotenv
@@ -8,6 +9,15 @@ from datetime import datetime, timedelta
 load_dotenv()
 
 app = FastAPI(title="Brain.OS Admin Control Center")
+
+@app.get("/")
+async def serve_admin_ui():
+    # Adjusted path for remote server structure
+    path = "admin_panel/frontend/index.html"
+    if not os.path.exists(path):
+        # Fallback if running directly from backend folder
+        path = "../frontend/index.html"
+    return FileResponse(path)
 
 # Universal Collaboration Protocol
 app.add_middleware(
