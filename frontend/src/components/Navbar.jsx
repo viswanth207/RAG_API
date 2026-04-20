@@ -71,7 +71,6 @@ function Navbar({ onHomeClick, onApiGatewayClick, onLoginClick, onLogoutClick, u
                       className="profile-dropdown-item"
                       onClick={() => handleProfileMenuClick(onApiGatewayClick)}
                     >
-                      <span className="dropdown-icon">🔑</span>
                       API Gateway
                     </button>
                     
@@ -81,7 +80,6 @@ function Navbar({ onHomeClick, onApiGatewayClick, onLoginClick, onLogoutClick, u
                       className="profile-dropdown-item logout"
                       onClick={() => handleProfileMenuClick(onLogoutClick)}
                     >
-                      <span className="dropdown-icon">🚪</span>
                       Logout
                     </button>
                   </div>
