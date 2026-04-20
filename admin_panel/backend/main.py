@@ -16,6 +16,8 @@ sys.path.append(os.path.dirname(__file__))
 
 from auth_utils import get_password_hash, verify_password, create_access_token
 
+from fastapi.staticfiles import StaticFiles
+
 load_dotenv()
 
 app = FastAPI(title="Data Mind.os Admin ERP")
@@ -33,18 +35,20 @@ MONGODB_URL = os.getenv("MONGODB_URL")
 client = AsyncIOMotorClient(MONGODB_URL)
 db = client.dynamic_assistant_db
 
-# Models
-class AdminAuth(BaseModel):
-    username: str
-    password: str
+# Ensure paths are absolute relative to this file
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DIST_DIR = os.path.join(BASE_DIR, "frontend", "dist")
 
-# Routes
+# Mount Static Assets
+if os.path.exists(os.path.join(DIST_DIR, "assets")):
+    app.mount("/assets", StaticFiles(directory=os.path.join(DIST_DIR, "assets")), name="assets")
+
 @app.get("/")
 async def serve_erp_ui():
-    path = "admin_panel/frontend/dist/index.html"
-    if not os.path.exists(path):
+    index_path = os.path.join(DIST_DIR, "index.html")
+    if not os.path.exists(index_path):
         return {"message": "Admin ERP UI Not Built Yet. Run npm run build."}
-    return FileResponse(path)
+    return FileResponse(index_path)
 
 @app.post("/api/admin/setup")
 async def setup_initial_admin(auth: AdminAuth):
