@@ -51,7 +51,7 @@ const getToken = async () => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                api_key: "${apiKey || 'library_assistant'}",
+                api_key: "${apiKey}",
                 password: "YOUR_SECRET"
             })
         });
