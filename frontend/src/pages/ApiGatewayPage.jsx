@@ -40,8 +40,9 @@ function ApiGatewayPage({ onHomeClick }) {
         ? "mongodb://10.178.40.87:27017"
         : "postgresql://user:pass@10.178.40.87:5432/dbname";
     }
+    const dynamicBaseUrl = window.location.origin;
     return `// Copy this snippet into your 3rd-party integration
-const BASE_URL = "http://10.178.40.76:8888"; 
+const BASE_URL = "${dynamicBaseUrl}";
 
 // 1. Authenticate & Get Token
 const getToken = async () => {
@@ -116,6 +117,26 @@ const chatWithDBStream = async (message, onChunk) => {
     }
 };`;
   }
+
+  const handleCopyCode = () => {
+    const text = generateCodeSnippet();
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text);
+    } else {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+      } catch (err) {
+        console.error('Fallback copy error', err);
+      }
+      document.body.removeChild(textArea);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const handleRegister = async (e) => {
     e.preventDefault()
@@ -233,7 +254,7 @@ const chatWithDBStream = async (message, onChunk) => {
               </div>
 
               <div className="code-container">
-                <button className="copy-button" onClick={() => { navigator.clipboard.writeText(generateCodeSnippet()); setCopied(true); setTimeout(() => setCopied(false), 2000); }}>
+                <button className="copy-button" onClick={handleCopyCode}>
                   {copied ? 'Copied!' : 'Copy Code'}
                 </button>
                 <pre className="code-block" style={{ maxHeight: '200px', overflowY: 'auto', textAlign: 'left' }}>
