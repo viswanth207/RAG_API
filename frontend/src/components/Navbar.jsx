@@ -29,11 +29,7 @@ function Navbar({ onHomeClick, onApiGatewayClick, onLoginClick, onLogoutClick, u
   return (
     <nav className="navbar">
       <div className="nav-container">
-        <div className="nav-logo premium-logo" onClick={onHomeClick}>
-          <div className="logo-mark">
-            <div className="logo-dot"></div>
-          </div>
-          <span className="logo-text">Intelligence <span className="logo-text-light">Gateway</span></span>
+          <span className="logo-text">Data Mind <span className="logo-text-light">Gateway</span></span>
         </div>
         
         <div className="nav-links">
