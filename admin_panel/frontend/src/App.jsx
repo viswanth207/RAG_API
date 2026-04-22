@@ -171,7 +171,7 @@ export default function App() {
       {/* SIDEBAR */}
       <aside className="w-64 border-r border-white/5 flex flex-col pt-8 bg-[#080808]">
         <div className="px-8 mb-12">
-          <h1 className="text-xl font-black tracking-tighter">DATA MIND<span className="text-purple-500">.OS</span></h1>
+          <h1 className="text-xl font-black tracking-tighter">DATA MIND</h1>
         </div>
 
         <nav className="flex-1">
