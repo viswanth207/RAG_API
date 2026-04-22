@@ -128,7 +128,7 @@ export default function App() {
             <div className="w-16 h-16 bg-purple-500/10 rounded-2xl flex items-center justify-center text-purple-500 mb-4 border border-purple-500/20">
               <Shield size={32} />
             </div>
-            <h1 className="text-2xl font-black tracking-tighter text-white">DATA MIND<span className="text-purple-500">.OS</span></h1>
+            <h1 className="text-2xl font-black tracking-tighter text-white">DATA MIND</h1>
             <p className="text-gray-500 text-xs mt-1 font-bold uppercase tracking-widest">Admin Control Port</p>
           </div>
 
