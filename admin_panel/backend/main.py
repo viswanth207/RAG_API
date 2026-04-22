@@ -22,6 +22,16 @@ load_dotenv()
 
 app = FastAPI(title="Data Mind.os Admin ERP")
 
+@app.on_event("startup")
+async def startup_event():
+    print("\n" + "="*50)
+    print("🚀 DATA MIND ADMIN ERP BACKEND ONLINE")
+    print(f"🔗 Access the Dashboard at: http://localhost:9000")
+    print(f"📁 Serving frontend from: {DIST_DIR}")
+    if not os.path.exists(DIST_DIR):
+        print("❌ WARNING: Frontend builds not found! Run 'npm run build' in admin_panel/frontend")
+    print("="*50 + "\n")
+
 # Security Protocol
 app.add_middleware(
     CORSMiddleware,
@@ -44,16 +54,30 @@ class AdminAuth(BaseModel):
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DIST_DIR = os.path.join(BASE_DIR, "frontend", "dist")
 
-# Mount Static Assets
-if os.path.exists(os.path.join(DIST_DIR, "assets")):
+# Robust Static File Protocol
+if os.path.exists(DIST_DIR):
+    # Mount assets folder explicitly
     app.mount("/assets", StaticFiles(directory=os.path.join(DIST_DIR, "assets")), name="assets")
 
-@app.get("/")
-async def serve_erp_ui():
+@app.get("/{full_path:path}")
+async def serve_admin_panel(full_path: str):
+    # Skip API routes - they should be handled by their respective decorators
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="API route not found")
+        
+    # 1. Try to serve exact file from DIST_DIR (e.g., vite.svg, favicon.ico)
+    file_path = os.path.join(DIST_DIR, full_path)
+    if os.path.exists(file_path) and os.path.isfile(file_path):
+        return FileResponse(file_path)
+        
+    # 2. Fallback to index.html for SPA behavior or root access
     index_path = os.path.join(DIST_DIR, "index.html")
-    if not os.path.exists(index_path):
-        return {"message": "Admin ERP UI Not Built Yet. Run npm run build."}
-    return FileResponse(index_path)
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    
+    return {"message": "Admin ERP UI Not Built Yet. Please run 'npm run build' in the frontend directory."}
+
+# (Existing API routes follow)
 
 @app.post("/api/admin/setup")
 async def setup_initial_admin(auth: AdminAuth):
