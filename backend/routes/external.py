@@ -165,7 +165,11 @@ async def external_chat_stream(
                 "name": f"External {db_name} Assistant",
                 "vector_store": vector_store,
                 "system_instructions": "You are a helpful AI assistant integrated securely into a client website. Analyze the provided database records and answer clearly.",
-                "created_at": str(datetime.now())
+                "documents_count": vector_store.index.ntotal if hasattr(vector_store, 'index') else "Unknown",
+                "created_at": str(datetime.now()),
+                "enable_statistics": True,
+                "enable_alerts": False,
+                "enable_recommendations": True
             }
             
             async def external_generator():
