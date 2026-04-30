@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class DataLoader:
     
     @staticmethod
-    def load_from_mongodb(collection_name: str = None, db_name: str = "vtfinal", mongo_url: str = None, limit_per_collection: int = 200) -> List[Document]:
+    def load_from_mongodb(collection_name: str = None, db_name: str = "None", mongo_url: str = None, limit_per_collection: int = 20) -> List[Document]:
         try:
             if not mongo_url:
                 mongo_url = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
