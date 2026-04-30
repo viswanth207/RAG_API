@@ -104,7 +104,6 @@ def background_indexing_job(db_url: str, db_name: str, index_path: str, virtual_
                     coll = source.split('/')[-1]
                     counts[coll] = counts.get(coll, 0) + 1
             
-            import json
             with open(f"{index_path}.stats.json", 'w') as f:
                 json.dump(counts, f)
                 
@@ -178,7 +177,6 @@ async def external_chat_stream(
             db_stats = {}
             stats_path = f"{index_dir}.stats.json"
             if os.path.exists(stats_path):
-                import json
                 with open(stats_path, 'r') as f:
                     db_stats = json.load(f)
             
