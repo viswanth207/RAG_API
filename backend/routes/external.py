@@ -109,7 +109,7 @@ async def external_chat_stream(
             documents = DataLoader.load_from_postgres(db_url, table_names=None)
         else:
             # Load all available data from the requested MongoDB database using the PROVIDED URL
-            target_url = request.database_url or "mongodb://127.0.0.1:27017"
+            target_url = request.database_url or os.getenv("MONGODB_URL") or "mongodb://127.0.0.1:27017"
             logger.info(f"🚨 FRESH SCAN: TARGETING DATABASE: {db_name} AT URL: {target_url}")
             documents = DataLoader.load_from_mongodb(db_name=db_name, mongo_url=target_url)
             logger.info(f"Reloaded {len(documents)} updated docs from MongoDB: {db_name}")
