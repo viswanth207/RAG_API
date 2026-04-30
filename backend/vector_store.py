@@ -1,9 +1,10 @@
 from typing import List, Optional
 from langchain_core.documents import Document
-from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_pinecone import PineconeVectorStore
 import logging
 import os
+from pinecone import Pinecone
 
 logger = logging.getLogger(__name__)
 
@@ -23,21 +24,30 @@ class VectorStoreManager:
             encode_kwargs={'normalize_embeddings': True}
         )
         
+        pinecone_api_key = os.getenv("PINECONE_API_KEY")
+        if pinecone_api_key:
+            self.pc = Pinecone(api_key=pinecone_api_key)
+            self.index_name = "datamind"
+        else:
+            logger.warning("PINECONE_API_KEY is not set!")
+        
         logger.info("Embeddings initialized successfully")
     
-    def create_vector_store(self, documents: List[Document]) -> FAISS:
+    def create_vector_store(self, documents: List[Document], namespace: str) -> PineconeVectorStore:
         if not documents:
             raise ValueError("Cannot create vector store with empty documents")
         
         try:
-            logger.info(f"Creating vector store with {len(documents)} documents")
+            logger.info(f"Pushing {len(documents)} documents to Pinecone index 'datamind', namespace: {namespace}")
             
-            vector_store = FAISS.from_documents(
+            vector_store = PineconeVectorStore.from_documents(
                 documents=documents,
-                embedding=self.embeddings
+                embedding=self.embeddings,
+                index_name=self.index_name,
+                namespace=namespace
             )
             
-            logger.info("Vector store created successfully")
+            logger.info("Pinecone Vector store updated successfully")
             return vector_store
             
         except Exception as e:
@@ -46,19 +56,19 @@ class VectorStoreManager:
     
     def similarity_search(
         self, 
-        vector_store: FAISS, 
+        vector_store: PineconeVectorStore, 
         query: str, 
         k: int = 4
     ) -> List[Document]:
         try:
-            logger.info(f"Performing similarity search for: {query[:50]}...")
+            logger.info(f"Performing Pinecone similarity search for: {query[:50]}...")
             
             results = vector_store.similarity_search(
                 query=query,
                 k=k
             )
             
-            logger.info(f"Found {len(results)} relevant documents")
+            logger.info(f"Found {len(results)} relevant documents in Pinecone")
             return results
             
         except Exception as e:
@@ -67,12 +77,12 @@ class VectorStoreManager:
     
     def similarity_search_with_score(
         self, 
-        vector_store: FAISS, 
+        vector_store: PineconeVectorStore, 
         query: str, 
         k: int = 4
     ) -> List[tuple[Document, float]]:
         try:
-            logger.info(f"Performing similarity search with scores for: {query[:50]}...")
+            logger.info(f"Performing Pinecone similarity search with scores for: {query[:50]}...")
             
             results = vector_store.similarity_search_with_score(
                 query=query,
@@ -86,24 +96,15 @@ class VectorStoreManager:
             logger.error(f"Error during similarity search: {str(e)}")
             return []
     
-    def save_vector_store(self, vector_store: FAISS, path: str) -> None:
+    def load_vector_store(self, namespace: str) -> PineconeVectorStore:
         try:
-            os.makedirs(path, exist_ok=True)
-            vector_store.save_local(path)
-            logger.info(f"Vector store saved to {path}")
-        except Exception as e:
-            logger.error(f"Error saving vector store: {str(e)}")
-            raise
-    
-    def load_vector_store(self, path: str) -> FAISS:
-        try:
-            vector_store = FAISS.load_local(
-                path, 
-                self.embeddings,
-                allow_dangerous_deserialization=True
+            vector_store = PineconeVectorStore(
+                index_name=self.index_name,
+                embedding=self.embeddings,
+                namespace=namespace
             )
-            logger.info(f"Vector store loaded from {path}")
+            logger.info(f"Connected to Pinecone index 'datamind', namespace: {namespace}")
             return vector_store
         except Exception as e:
-            logger.error(f"Error loading vector store: {str(e)}")
+            logger.error(f"Error loading Pinecone vector store: {str(e)}")
             raise

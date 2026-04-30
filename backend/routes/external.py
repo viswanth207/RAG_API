@@ -77,8 +77,8 @@ async def login_for_access_token(request: ExternalClientAuth):
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-def background_indexing_job(db_url: str, db_name: str, index_path: str):
-    """Synchronous background job to load data and build FAISS index without blocking the event loop."""
+def background_indexing_job(db_url: str, db_name: str, index_path: str, virtual_assistant_id: str):
+    """Synchronous background job to load data and build Pinecone index without blocking the event loop."""
     indexing_flag = f"{index_path}.indexing"
     try:
         os.makedirs(os.path.dirname(index_path), exist_ok=True)
@@ -94,9 +94,9 @@ def background_indexing_job(db_url: str, db_name: str, index_path: str):
             
         if documents:
             from backend.main import vector_store_manager
-            vector_store = vector_store_manager.create_vector_store(documents)
-            vector_store_manager.save_vector_store(vector_store, index_path)
-            logger.info(f"✅ BACKGROUND JOB: Successfully saved index to {index_path}")
+            vector_store_manager.create_vector_store(documents, namespace=virtual_assistant_id)
+            open(f"{index_path}.pinecone_indexed", 'w').close()
+            logger.info(f"✅ BACKGROUND JOB: Successfully saved index to Pinecone namespace {virtual_assistant_id}")
         else:
             logger.warning(f"⚠️ BACKGROUND JOB: No documents found for {db_name}")
             
@@ -156,17 +156,17 @@ async def external_chat_stream(
                 yield json.dumps({"type": "content", "data": "⏳ **System Status:** I am currently analyzing and indexing your massive database in the background! This process takes a few minutes depending on the size of your data. Please check back shortly!"}) + "\n"
             return EventSourceResponse(indexing_generator())
             
-        elif os.path.exists(os.path.join(index_dir, "index.faiss")):
+        elif os.path.exists(f"{index_dir}.pinecone_indexed"):
             from backend.main import vector_store_manager, assistant_engine
-            logger.info(f"⚡ INSTANT LOAD: Found pre-computed Vector DB at {index_dir}")
-            vector_store = vector_store_manager.load_vector_store(index_dir)
+            logger.info(f"⚡ INSTANT LOAD: Found pre-computed Pinecone Vector DB for namespace {virtual_assistant_id}")
+            vector_store = vector_store_manager.load_vector_store(namespace=virtual_assistant_id)
             
             assistant_config = {
                 "assistant_id": virtual_assistant_id,
                 "name": f"External {db_name} Assistant",
                 "vector_store": vector_store,
                 "system_instructions": "You are a helpful AI assistant integrated securely into a client website. Analyze the provided database records and answer clearly.",
-                "documents_count": vector_store.index.ntotal if hasattr(vector_store, 'index') else "Unknown",
+                "documents_count": "Unknown (Cloud DB)",
                 "created_at": str(datetime.now()),
                 "enable_statistics": True,
                 "enable_alerts": False,
@@ -183,11 +183,11 @@ async def external_chat_stream(
             
         else:
             logger.info(f"🚀 KICKOFF: Starting background job for new DB: {db_name}")
-            background_tasks.add_task(background_indexing_job, target_url, db_name, index_dir)
+            background_tasks.add_task(background_indexing_job, target_url, db_name, index_dir, virtual_assistant_id)
             
-            async def start_generator():
+            async def kicking_off_generator():
                 yield json.dumps({"type": "content", "data": "🚀 **System Status:** I have successfully connected to your database! Because your data is large, I have started building your AI knowledge base in the background. Please try asking your question again in 2-3 minutes."}) + "\n"
-            return EventSourceResponse(start_generator())
+            return EventSourceResponse(kicking_off_generator())
         
     except Exception as e:
         import traceback
