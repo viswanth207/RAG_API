@@ -118,6 +118,61 @@ async def get_audit_logs(limit: int = 100):
         logs.append(log)
     return logs
 
+@app.get("/api/admin/clients")
+async def get_api_clients():
+    cursor = db.api_clients.find().sort("created_at", -1)
+    clients = []
+    async for client in cursor:
+        client["_id"] = str(client["_id"])
+        
+        # Mask the API key (e.g. sk_***123)
+        api_key = client.get("api_key", "")
+        masked_key = f"{api_key[:4]}***{api_key[-4:]}" if len(api_key) > 8 else "***"
+        
+        # Default limits if not set
+        usage_count = client.get("usage_count", 0)
+        usage_limit = client.get("usage_limit", 100)
+        
+        # Fetch the most recent target DB from audit logs for this client
+        latest_log = await db.api_audit_logs.find_one(
+            {"api_key": api_key, "metadata.target_db": {"$exists": True}},
+            sort=[("timestamp", -1)]
+        )
+        
+        target_db = latest_log.get("metadata", {}).get("target_db", "N/A") if latest_log else "N/A"
+        target_url = latest_log.get("metadata", {}).get("target_url", "N/A") if latest_log else "N/A"
+        
+        # Mask target URL password if present (e.g. mongodb+srv://user:pass@...)
+        if "@" in target_url and "://" in target_url:
+            parts = target_url.split("@")
+            prefix = parts[0].split("://")[0] + "://***:***@"
+            target_url = prefix + parts[1]
+            
+        clients.append({
+            "id": client["_id"],
+            "api_key": masked_key,
+            "raw_api_key": api_key, # needed for put requests, frontend shouldn't show it
+            "created_at": client.get("created_at", datetime.utcnow()).isoformat(),
+            "usage_count": usage_count,
+            "usage_limit": usage_limit,
+            "target_db": target_db,
+            "target_url": target_url
+        })
+    return clients
+
+class UpdateLimitRequest(BaseModel):
+    limit: int
+
+@app.put("/api/admin/clients/{api_key}/limit")
+async def update_client_limit(api_key: str, request: UpdateLimitRequest):
+    result = await db.api_clients.update_one(
+        {"api_key": api_key},
+        {"$set": {"usage_limit": request.limit}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="API Client not found")
+    return {"message": "Limit updated successfully", "new_limit": request.limit}
+
 # Catch-all route for SPA must be defined LAST so it doesn't intercept valid API calls
 @app.get("/{full_path:path}")
 async def serve_admin_panel(full_path: str):

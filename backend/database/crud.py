@@ -144,7 +144,9 @@ async def create_api_client(client_data: dict) -> dict:
     
     client_doc = {
         **client_data,
-        "created_at": datetime.utcnow()
+        "created_at": datetime.utcnow(),
+        "usage_count": 0,
+        "usage_limit": 100
     }
     
     result = await db.api_clients.insert_one(client_doc)
@@ -160,6 +162,21 @@ async def get_api_client_by_key(api_key: str) -> Optional[dict]:
         client_doc["_id"] = str(client_doc["_id"])
         return client_doc
     return None
+
+async def increment_api_client_usage(api_key: str, target_db: str, target_url: str):
+    """Increment the client's usage count and log their latest target info."""
+    db = get_database()
+    await db.api_clients.update_one(
+        {"api_key": api_key},
+        {
+            "$inc": {"usage_count": 1},
+            "$set": {
+                "last_target_db": target_db,
+                "last_target_url": target_url,
+                "updated_at": datetime.utcnow()
+            }
+        }
+    )
 
 async def save_api_audit_log(log_data: dict):
     """Save an API audit log entry to the database"""

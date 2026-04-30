@@ -60,6 +60,8 @@ export default function App() {
   const [stats, setStats] = useState({ total_hits: 0, success_rate: 100, active_clients: 0, avg_latency_ms: 0 });
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [clients, setClients] = useState([]);
+  const [editingLimit, setEditingLimit] = useState(null);
 
   useEffect(() => {
     const token = localStorage.getItem('admin_token');
@@ -85,6 +87,38 @@ export default function App() {
       setLogs(logData);
     } catch (err) {
       console.error("Link Failure", err);
+    }
+  };
+
+  const fetchClients = async () => {
+    try {
+      const res = await fetch('/api/admin/clients');
+      const data = await res.json();
+      setClients(data);
+    } catch (err) {
+      console.error("Client Fetch Failure", err);
+    }
+  };
+
+  useEffect(() => {
+    if (isLoggedIn && activeTab === 'users') {
+      fetchClients();
+    }
+  }, [isLoggedIn, activeTab]);
+
+  const handleUpdateLimit = async (apiKey, newLimit) => {
+    try {
+      const res = await fetch(`/api/admin/clients/${apiKey}/limit`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: parseInt(newLimit) })
+      });
+      if (res.ok) {
+        setEditingLimit(null);
+        fetchClients();
+      }
+    } catch (err) {
+      console.error("Update Limit Failed", err);
     }
   };
 
@@ -280,12 +314,86 @@ export default function App() {
                 PROVISION NEW ID
               </button>
             </div>
-            <div className="flex items-center justify-center py-24 text-gray-500">
-              <div className="text-center">
-                <Users size={48} className="mx-auto mb-4 opacity-50" />
-                <p className="font-mono text-sm capitalize">Identity management vault is securely locked.</p>
-                <p className="text-[10px] mt-2 uppercase tracking-widest text-purple-400/50">Requires Master Authorization</p>
-              </div>
+            <div className="overflow-x-auto pb-4">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="py-4 text-xs tracking-widest text-gray-500 font-bold uppercase">Client ID (Masked)</th>
+                    <th className="py-4 text-xs tracking-widest text-gray-500 font-bold uppercase">Target DB</th>
+                    <th className="py-4 text-xs tracking-widest text-gray-500 font-bold uppercase">Target URL</th>
+                    <th className="py-4 text-xs tracking-widest text-gray-500 font-bold uppercase">Usage / Limit</th>
+                    <th className="py-4 text-xs tracking-widest text-gray-500 font-bold uppercase text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {clients.map((client, i) => (
+                    <motion.tr
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                      key={client.id}
+                      className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                    >
+                      <td className="py-4">
+                        <div className="flex items-center gap-2">
+                          <Zap size={14} className="text-purple-400" />
+                          <span className="font-mono text-gray-300 font-bold tracking-tight">{client.api_key}</span>
+                        </div>
+                        <div className="text-[10px] text-gray-600 font-mono mt-1">Joined: {new Date(client.created_at).toLocaleDateString()}</div>
+                      </td>
+                      <td className="py-4 font-mono text-purple-300 font-bold text-sm">
+                        {client.target_db}
+                      </td>
+                      <td className="py-4 text-gray-500 font-mono text-xs max-w-[200px] truncate" title={client.target_url}>
+                        {client.target_url}
+                      </td>
+                      <td className="py-4">
+                        <div className="flex items-center gap-2">
+                          <span className={`font-black ${client.usage_count >= client.usage_limit ? 'text-red-500' : 'text-green-400'}`}>
+                            {client.usage_count}
+                          </span>
+                          <span className="text-gray-600">/</span>
+                          {editingLimit === client.raw_api_key ? (
+                            <input
+                              type="number"
+                              autoFocus
+                              className="bg-black border border-purple-500 rounded px-2 py-1 w-20 text-white font-bold outline-none text-sm"
+                              defaultValue={client.usage_limit}
+                              onBlur={(e) => handleUpdateLimit(client.raw_api_key, e.target.value)}
+                              onKeyDown={(e) => e.key === 'Enter' && handleUpdateLimit(client.raw_api_key, e.target.value)}
+                            />
+                          ) : (
+                            <span className="text-gray-400 font-bold cursor-pointer hover:text-white transition-colors" onClick={() => setEditingLimit(client.raw_api_key)}>
+                              {client.usage_limit}
+                            </span>
+                          )}
+                        </div>
+                        <div className="w-full bg-white/5 h-1.5 mt-2 rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full rounded-full ${client.usage_count >= client.usage_limit ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' : 'bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.5)]'}`} 
+                            style={{ width: `${Math.min((client.usage_count / client.usage_limit) * 100, 100)}%` }} 
+                          />
+                        </div>
+                      </td>
+                      <td className="py-4 text-right">
+                        <button 
+                          onClick={() => setEditingLimit(client.raw_api_key)}
+                          className="text-xs font-bold text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1 rounded transition-colors"
+                        >
+                          EDIT LIMIT
+                        </button>
+                      </td>
+                    </motion.tr>
+                  ))}
+                  {clients.length === 0 && (
+                    <tr>
+                      <td colSpan="5" className="py-12 text-center text-gray-600 font-mono text-sm">
+                        No clients registered yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         )}

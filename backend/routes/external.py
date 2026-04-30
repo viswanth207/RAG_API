@@ -100,6 +100,18 @@ async def external_chat_stream(
         virtual_assistant_id = f"ext_{api_key}_{db_name}"
         logger.info(f"Incoming external request from [{api_key}]. Action: Chat with [{db_name}]")
         
+        # Check usage limits before processing
+        client_data = await crud.get_api_client_by_key(api_key)
+        if client_data:
+            usage_count = client_data.get("usage_count", 0)
+            usage_limit = client_data.get("usage_limit", 100) # default 100
+            
+            if usage_count >= usage_limit:
+                raise HTTPException(
+                    status_code=429, 
+                    detail={"error": "API Limit Reached", "msg": f"You have reached your limit of {usage_limit} queries."}
+                )
+        
         # Load fresh data from the requested database every time for 100% accuracy
         documents = []
         db_url = request.database_url
@@ -107,12 +119,16 @@ async def external_chat_stream(
         if db_url and db_url.startswith("postgres"):
             # PostgreSQL Data Loading
             documents = DataLoader.load_from_postgres(db_url, table_names=None)
+            target_url = db_url
         else:
             # Load all available data from the requested MongoDB database using the PROVIDED URL
             target_url = request.database_url or os.getenv("MONGODB_URL") or "mongodb://127.0.0.1:27017"
             logger.info(f"🚨 FRESH SCAN: TARGETING DATABASE: {db_name} AT URL: {target_url}")
             documents = DataLoader.load_from_mongodb(db_name=db_name, mongo_url=target_url)
             logger.info(f"Reloaded {len(documents)} updated docs from MongoDB: {db_name}")
+            
+        # Increment usage count
+        await crud.increment_api_client_usage(api_key, db_name, target_url)
             
         if documents:
             vector_store = vector_store_manager.create_vector_store(documents)
