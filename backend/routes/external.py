@@ -95,8 +95,21 @@ def background_indexing_job(db_url: str, db_name: str, index_path: str, virtual_
         if documents:
             from backend.main import vector_store_manager
             vector_store_manager.create_vector_store(documents, namespace=virtual_assistant_id)
+            
+            # Calculate EXACT counts per collection for the AI to use later
+            counts = {}
+            for doc in documents:
+                source = doc.metadata.get('source', '')
+                if source:
+                    coll = source.split('/')[-1]
+                    counts[coll] = counts.get(coll, 0) + 1
+            
+            import json
+            with open(f"{index_path}.stats.json", 'w') as f:
+                json.dump(counts, f)
+                
             open(f"{index_path}.pinecone_indexed", 'w').close()
-            logger.info(f"✅ BACKGROUND JOB: Successfully saved index to Pinecone namespace {virtual_assistant_id}")
+            logger.info(f"✅ BACKGROUND JOB: Successfully saved index and stats ({counts}) to Pinecone")
         else:
             logger.warning(f"⚠️ BACKGROUND JOB: No documents found for {db_name}")
             
@@ -161,12 +174,22 @@ async def external_chat_stream(
             logger.info(f"⚡ INSTANT LOAD: Found pre-computed Pinecone Vector DB for namespace {virtual_assistant_id}")
             vector_store = vector_store_manager.load_vector_store(namespace=virtual_assistant_id)
             
+            # Load the pre-calculated Ground Truth statistics
+            db_stats = {}
+            stats_path = f"{index_dir}.stats.json"
+            if os.path.exists(stats_path):
+                import json
+                with open(stats_path, 'r') as f:
+                    db_stats = json.load(f)
+            
+            stats_summary = ", ".join([f"{k}: {v} records" for k, v in db_stats.items()])
+            
             assistant_config = {
                 "assistant_id": virtual_assistant_id,
                 "name": f"External {db_name} Assistant",
                 "vector_store": vector_store,
-                "system_instructions": "You are a helpful AI assistant integrated securely into a client website. Analyze the provided database records and answer clearly.",
-                "documents_count": "Unknown (Cloud DB)",
+                "system_instructions": f"You are a helpful AI assistant. IMPORTANT DATABASE STATS: The database contains the following totals: {stats_summary}. If the user asks for total counts, ALWAYS use these numbers. Do NOT rely on the search results for counting.",
+                "documents_count": sum(db_stats.values()) if db_stats else "Unknown",
                 "created_at": str(datetime.now()),
                 "enable_statistics": True,
                 "enable_alerts": False,
