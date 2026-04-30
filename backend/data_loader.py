@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class DataLoader:
     
     @staticmethod
-    def load_from_mongodb(collection_name: str = None, db_name: str = "vtfinal", mongo_url: str = None) -> List[Document]:
+    def load_from_mongodb(collection_name: str = None, db_name: str = "vtfinal", mongo_url: str = None, limit_per_collection: int = 200) -> List[Document]:
         try:
             if not mongo_url:
                 mongo_url = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
@@ -37,7 +37,8 @@ class DataLoader:
             
             for coll_name in collections_to_load:
                 collection = db[coll_name]
-                cursor = collection.find({})
+                # Enforce a strict limit to prevent OOM freezes during live API requests
+                cursor = collection.find({}).limit(limit_per_collection)
                 
                 for idx, item in enumerate(cursor):
                     if '_id' in item:
@@ -58,7 +59,7 @@ class DataLoader:
                     )
                     documents.append(doc)
             
-            logger.info(f"Loaded {len(documents)} documents from MongoDB {db_name}")
+            logger.info(f"Loaded {len(documents)} documents from MongoDB {db_name} (Limited to {limit_per_collection} per collection to prevent memory crash)")
             return documents
             
         except Exception as e:
