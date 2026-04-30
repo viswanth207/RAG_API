@@ -99,7 +99,8 @@ class VectorStoreManager:
         try:
             vector_store = FAISS.load_local(
                 path, 
-                self.embeddings
+                self.embeddings,
+                allow_dangerous_deserialization=True
             )
             logger.info(f"Vector store loaded from {path}")
             return vector_store
