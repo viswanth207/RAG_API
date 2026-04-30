@@ -240,7 +240,9 @@ class AssistantEngine:
         
         for idx, doc in enumerate(documents, 1):
             context_parts.append(f"[Source {idx}]")
-            context_parts.append(doc.page_content)
+            # Truncate content to 2500 characters (approx 500 tokens) to prevent TPM LLM rate limits
+            content = doc.page_content if len(doc.page_content) <= 2500 else doc.page_content[:2500] + "\n...[TRUNCATED FOR SIZE]"
+            context_parts.append(content)
             context_parts.append("")
         
         return "\n".join(context_parts)
