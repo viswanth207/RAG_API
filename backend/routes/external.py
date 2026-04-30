@@ -89,7 +89,8 @@ def background_indexing_job(db_url: str, db_name: str, index_path: str):
         if db_url and db_url.startswith("postgres"):
             documents = DataLoader.load_from_postgres(db_url, table_names=None)
         else:
-            documents = DataLoader.load_from_mongodb(db_name=db_name, mongo_url=db_url, limit_per_collection=500)
+            # Limit 0 means NO LIMIT - Process the entire massive database!
+            documents = DataLoader.load_from_mongodb(db_name=db_name, mongo_url=db_url, limit_per_collection=0)
             
         if documents:
             from backend.main import vector_store_manager
