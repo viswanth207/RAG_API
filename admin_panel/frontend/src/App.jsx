@@ -289,7 +289,7 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {logs.map((log, i) => (
+                    {logs.slice(0, 10).map((log, i) => (
                       <motion.tr
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
