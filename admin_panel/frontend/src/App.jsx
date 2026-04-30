@@ -310,8 +310,12 @@ export default function App() {
                 <Shield size={20} className="text-purple-500" />
                 ADMINISTRATIVE IDENTITIES
               </h3>
-              <button className="bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors shadow-[0_0_10px_rgba(168,85,247,0.4)]">
-                PROVISION NEW ID
+              <button 
+                onClick={fetchClients}
+                className="bg-purple-600/20 hover:bg-purple-600/40 text-purple-400 text-xs font-bold px-4 py-2 rounded-lg transition-colors border border-purple-500/30 flex items-center gap-2"
+              >
+                <RefreshCw size={14} />
+                REFRESH DATA
               </button>
             </div>
             <div className="overflow-x-auto pb-4">
