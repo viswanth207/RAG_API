@@ -59,24 +59,7 @@ if os.path.exists(DIST_DIR):
     # Mount assets folder explicitly
     app.mount("/assets", StaticFiles(directory=os.path.join(DIST_DIR, "assets")), name="assets")
 
-@app.get("/{full_path:path}")
-async def serve_admin_panel(full_path: str):
-    # Skip API routes - they should be handled by their respective decorators
-    if full_path.startswith("api/"):
-        raise HTTPException(status_code=404, detail="API route not found")
-        
-    # 1. Try to serve exact file from DIST_DIR (e.g., vite.svg, favicon.ico)
-    file_path = os.path.join(DIST_DIR, full_path)
-    if os.path.exists(file_path) and os.path.isfile(file_path):
-        return FileResponse(file_path)
-        
-    # 2. Fallback to index.html for SPA behavior or root access
-    index_path = os.path.join(DIST_DIR, "index.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
-    
-    return {"message": "Admin ERP UI Not Built Yet. Please run 'npm run build' in the frontend directory."}
-
+# (Static files catch-all route moved to bottom)
 # (Existing API routes follow)
 
 @app.post("/api/admin/setup")
@@ -134,6 +117,21 @@ async def get_audit_logs(limit: int = 100):
             log["timestamp"] = log["timestamp"].isoformat()
         logs.append(log)
     return logs
+
+# Catch-all route for SPA must be defined LAST so it doesn't intercept valid API calls
+@app.get("/{full_path:path}")
+async def serve_admin_panel(full_path: str):
+    # 1. Try to serve exact file from DIST_DIR (e.g., vite.svg, favicon.ico)
+    file_path = os.path.join(DIST_DIR, full_path)
+    if os.path.exists(file_path) and os.path.isfile(file_path):
+        return FileResponse(file_path)
+        
+    # 2. Fallback to index.html for SPA behavior or root access
+    index_path = os.path.join(DIST_DIR, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    
+    return {"message": "Admin ERP UI Not Built Yet. Please run 'npm run build' in the frontend directory."}
 
 if __name__ == "__main__":
     import uvicorn
