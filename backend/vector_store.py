@@ -117,27 +117,33 @@ class VectorStoreManager:
         import json
         cleaned_docs = []
         for doc in documents:
-            # Check size of metadata
-            meta_str = json.dumps(doc.metadata)
-            if len(meta_str) > 30000:  # 30KB safety limit
-                logger.warning(f"Metadata for document too large ({len(meta_str)} bytes). Pruning...")
+            # CRITICAL: Pinecone stores the document text IN the metadata under 'text' key.
+            # So total size = metadata_size + page_content_size
+            meta_json_size = len(json.dumps(doc.metadata))
+            content_size = len(doc.page_content)
+            total_size = meta_json_size + content_size
+            
+            if total_size > 35000:  # 35KB safety limit
+                logger.warning(f"Total Pinecone payload too large ({total_size} bytes). Aggressively pruning...")
                 
-                # Keep only essential fields
+                # 1. Truncate page content to 15k characters max
+                if len(doc.page_content) > 15000:
+                    doc.page_content = doc.page_content[:15000] + "...[TRUNCATED]"
+                
+                # 2. Keep only essential metadata fields
                 essential_keys = {'_id', 'id', 'name', 'title', 'source', 'item_number', 'type'}
                 new_metadata = {}
-                
-                # 1. Add essential keys first
                 for k, v in doc.metadata.items():
                     if k in essential_keys:
                         new_metadata[k] = v
                 
-                # 2. Add other keys only if they are small strings or primitives
+                # 3. Only add other fields if they are tiny (under 200 chars)
                 for k, v in doc.metadata.items():
                     if k not in essential_keys:
                         val_str = str(v)
-                        if len(val_str) < 500: # Only add small fields
+                        if len(val_str) < 200:
                             new_metadata[k] = v
-                
+                            
                 doc.metadata = new_metadata
                 
             cleaned_docs.append(doc)
