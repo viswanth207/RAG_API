@@ -41,6 +41,14 @@ class VectorStoreManager:
             # Clean metadata to prevent Pinecone 40KB limit errors
             documents = self._clean_metadata(documents)
             
+            # CLEAR OLD VECTORS: Delete existing namespace to ensure a fresh, accurate index
+            try:
+                logger.info(f"Purging old vectors for namespace: {namespace}...")
+                index = self.pc.Index(self.index_name)
+                index.delete(delete_all=True, namespace=namespace)
+            except Exception as e:
+                logger.warning(f"Note: Could not purge namespace {namespace} (it might be new): {str(e)}")
+            
             logger.info(f"Pushing {len(documents)} documents to Pinecone index 'datamind', namespace: {namespace}")
             
             vector_store = PineconeVectorStore.from_documents(
