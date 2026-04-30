@@ -173,6 +173,13 @@ async def update_client_limit(api_key: str, request: UpdateLimitRequest):
         raise HTTPException(status_code=404, detail="API Client not found")
     return {"message": "Limit updated successfully", "new_limit": request.limit}
 
+@app.delete("/api/admin/clients/{api_key}")
+async def delete_client(api_key: str):
+    result = await db.api_clients.delete_one({"api_key": api_key})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="API Client not found")
+    return {"message": "Identity completely revoked"}
+
 # Catch-all route for SPA must be defined LAST so it doesn't intercept valid API calls
 @app.get("/{full_path:path}")
 async def serve_admin_panel(full_path: str):

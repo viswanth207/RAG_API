@@ -10,7 +10,8 @@ import {
   ChevronRight,
   RefreshCw,
   Terminal,
-  Zap
+  Zap,
+  Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -119,6 +120,20 @@ export default function App() {
       }
     } catch (err) {
       console.error("Update Limit Failed", err);
+    }
+  };
+
+  const handleDeleteClient = async (apiKey) => {
+    if (!window.confirm("Are you sure you want to completely revoke this identity? This cannot be undone and will permanently block their API access.")) return;
+    try {
+      const res = await fetch(`/api/admin/clients/${apiKey}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        fetchClients();
+      }
+    } catch (err) {
+      console.error("Delete Failed", err);
     }
   };
 
@@ -379,12 +394,18 @@ export default function App() {
                           />
                         </div>
                       </td>
-                      <td className="py-4 text-right">
+                      <td className="py-4 text-right flex items-center justify-end gap-2">
                         <button 
                           onClick={() => setEditingLimit(client.raw_api_key)}
                           className="text-xs font-bold text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1 rounded transition-colors"
                         >
                           EDIT LIMIT
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteClient(client.raw_api_key)}
+                          className="text-xs font-bold text-red-500 hover:text-white bg-red-500/10 hover:bg-red-500/30 px-3 py-1 rounded transition-colors"
+                        >
+                          REVOKE
                         </button>
                       </td>
                     </motion.tr>

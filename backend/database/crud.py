@@ -163,6 +163,12 @@ async def get_api_client_by_key(api_key: str) -> Optional[dict]:
         return client_doc
     return None
 
+async def delete_api_client(api_key: str) -> bool:
+    """Permanently delete an external API client"""
+    db = get_database()
+    result = await db.api_clients.delete_one({"api_key": api_key})
+    return result.deleted_count > 0
+
 async def increment_api_client_usage(api_key: str, target_db: str, target_url: str):
     """Increment the client's usage count and log their latest target info."""
     db = get_database()
