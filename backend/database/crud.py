@@ -184,6 +184,14 @@ async def increment_api_client_usage(api_key: str, target_db: str, target_url: s
         }
     )
 
+async def set_indexing_status(api_key: str, status: str):
+    """Update the indexing state for an API client (e.g. 'indexing', 'completed', 'failed')"""
+    db = get_database()
+    await db.api_clients.update_one(
+        {"api_key": api_key},
+        {"$set": {"indexing_status": status, "updated_at": datetime.utcnow()}}
+    )
+
 async def save_api_audit_log(log_data: dict):
     """Save an API audit log entry to the database"""
     db = get_database()
