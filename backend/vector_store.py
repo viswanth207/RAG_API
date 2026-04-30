@@ -38,6 +38,9 @@ class VectorStoreManager:
             raise ValueError("Cannot create vector store with empty documents")
         
         try:
+            # Clean metadata to prevent Pinecone 40KB limit errors
+            documents = self._clean_metadata(documents)
+            
             logger.info(f"Pushing {len(documents)} documents to Pinecone index 'datamind', namespace: {namespace}")
             
             vector_store = PineconeVectorStore.from_documents(
@@ -108,3 +111,35 @@ class VectorStoreManager:
         except Exception as e:
             logger.error(f"Error loading Pinecone vector store: {str(e)}")
             raise
+
+    def _clean_metadata(self, documents: List[Document]) -> List[Document]:
+        """Ensure metadata doesn't exceed Pinecone's 40KB limit."""
+        import json
+        cleaned_docs = []
+        for doc in documents:
+            # Check size of metadata
+            meta_str = json.dumps(doc.metadata)
+            if len(meta_str) > 30000:  # 30KB safety limit
+                logger.warning(f"Metadata for document too large ({len(meta_str)} bytes). Pruning...")
+                
+                # Keep only essential fields
+                essential_keys = {'_id', 'id', 'name', 'title', 'source', 'item_number', 'type'}
+                new_metadata = {}
+                
+                # 1. Add essential keys first
+                for k, v in doc.metadata.items():
+                    if k in essential_keys:
+                        new_metadata[k] = v
+                
+                # 2. Add other keys only if they are small strings or primitives
+                for k, v in doc.metadata.items():
+                    if k not in essential_keys:
+                        val_str = str(v)
+                        if len(val_str) < 500: # Only add small fields
+                            new_metadata[k] = v
+                
+                doc.metadata = new_metadata
+                
+            cleaned_docs.append(doc)
+        return cleaned_docs
+
