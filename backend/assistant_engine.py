@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class AssistantEngine:
-    def __init__(self, groq_api_key: str, model_name: str = "llama-3.3-70b-versatile"):
+    def __init__(self, groq_api_key: str, model_name: str = "mixtral-8x7b-32768"):
         self.groq_api_key = groq_api_key
         self.model_name = model_name
         self.vector_store_manager = VectorStoreManager()
