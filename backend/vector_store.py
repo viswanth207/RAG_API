@@ -84,12 +84,17 @@ class VectorStoreManager:
             # Extract emails
             keywords.extend(re.findall(r'[\w\.-]+@[\w\.-]+', query))
             
-            # Clean keywords
+            # Clean exact keywords
             keywords = [kw.lower() for kw in set(keywords) if len(kw) > 1 or len(keywords) == 1]
             
-            if keywords:
-                logger.info(f"Detected exact-match keywords for reranking: {keywords}")
-                fetch_k = min(k * 3, 100) # Fetch up to 100 docs for deep keyword search
+            # 1.5 Extract semantic context words (to distinguish tables like 'appointment' vs 'lab_booking')
+            text_keywords = [w.lower() for w in re.findall(r'\b[a-zA-Z]{4,}\b', query)]
+            stop_words = {'what', 'when', 'where', 'which', 'who', 'why', 'how', 'this', 'that', 'with', 'from', 'table', 'details', 'about', 'there', 'their', 'then', 'than', 'have'}
+            text_keywords = [w for w in set(text_keywords) if w not in stop_words]
+            
+            if keywords or text_keywords:
+                logger.info(f"Detected keywords for reranking. Exact: {keywords}, Context: {text_keywords}")
+                fetch_k = min(k * 4, 150) # Fetch up to 150 docs to ensure we grab everything
             else:
                 fetch_k = k
 
@@ -98,22 +103,25 @@ class VectorStoreManager:
                 k=fetch_k
             )
             
-            # 2. Local Keyword Reranking
-            if keywords and results:
-                # We need a stable sort that keeps vector similarity as a tie-breaker.
-                # Since results are already sorted by vector similarity (best first),
-                # we assign them an initial score based on their position, then add massive boosts for keywords.
+            # 2. Local Two-Tier Keyword Reranking
+            if (keywords or text_keywords) and results:
                 scored_results = []
                 for i, doc in enumerate(results):
-                    content = doc.page_content.lower()
+                    # Check both content and metadata (especially 'source')
+                    content = doc.page_content.lower() + " " + str(doc.metadata).lower()
                     
-                    # Base score is reversed index (e.g., if 75 docs, first doc gets 75, last gets 1)
+                    # Base score is reversed index to preserve vector similarity ordering
                     score = len(results) - i
                     
+                    # Tier 1: Massive boost for exact numerical/ID matches
                     for kw in keywords:
-                        # Exact word boundary match for numbers to avoid matching '15' in '150'
                         if re.search(rf'\b{re.escape(kw)}\b', content):
-                            score += 1000 # Massive boost
+                            score += 5000 
+                            
+                    # Tier 2: Medium boost for context words (table names, column names)
+                    for text_kw in text_keywords:
+                        if text_kw in content:
+                            score += 100 
                             
                     scored_results.append((score, doc))
                 
