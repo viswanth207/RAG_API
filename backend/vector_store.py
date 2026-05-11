@@ -74,12 +74,57 @@ class VectorStoreManager:
         try:
             logger.info(f"Performing Pinecone similarity search for: {query[:50]}...")
             
+            # 1. Extract potential exact-match keywords (numbers, dates, emails)
+            import re
+            keywords = []
+            
+            # Extract numbers/dates (e.g. 15, 29_3_2026, 2026-03-29, 1029)
+            keywords.extend(re.findall(r'\b\d+(?:[_-]\d+)*\b', query))
+            
+            # Extract emails
+            keywords.extend(re.findall(r'[\w\.-]+@[\w\.-]+', query))
+            
+            # Clean keywords
+            keywords = [kw.lower() for kw in set(keywords) if len(kw) > 1 or len(keywords) == 1]
+            
+            if keywords:
+                logger.info(f"Detected exact-match keywords for reranking: {keywords}")
+                fetch_k = min(k * 3, 100) # Fetch up to 100 docs for deep keyword search
+            else:
+                fetch_k = k
+
             results = vector_store.similarity_search(
                 query=query,
-                k=k
+                k=fetch_k
             )
             
-            logger.info(f"Found {len(results)} relevant documents in Pinecone")
+            # 2. Local Keyword Reranking
+            if keywords and results:
+                # We need a stable sort that keeps vector similarity as a tie-breaker.
+                # Since results are already sorted by vector similarity (best first),
+                # we assign them an initial score based on their position, then add massive boosts for keywords.
+                scored_results = []
+                for i, doc in enumerate(results):
+                    content = doc.page_content.lower()
+                    
+                    # Base score is reversed index (e.g., if 75 docs, first doc gets 75, last gets 1)
+                    score = len(results) - i
+                    
+                    for kw in keywords:
+                        # Exact word boundary match for numbers to avoid matching '15' in '150'
+                        if re.search(rf'\b{re.escape(kw)}\b', content):
+                            score += 1000 # Massive boost
+                            
+                    scored_results.append((score, doc))
+                
+                # Sort by our custom score
+                scored_results.sort(key=lambda x: x[0], reverse=True)
+                results = [doc for score, doc in scored_results]
+                
+            # 3. Truncate back to k
+            results = results[:k]
+            
+            logger.info(f"Found {len(results)} relevant documents in Pinecone after reranking")
             return results
             
         except Exception as e:
