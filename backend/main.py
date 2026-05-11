@@ -98,8 +98,9 @@ async def neural_protocol_middleware(request, call_next):
             if "Authorization" in request.headers:
                 api_key = "bearer_token_used" 
             
+            import datetime as dt
             log_entry = {
-                "timestamp": datetime.utcnow(),
+                "timestamp": dt.datetime.now(dt.timezone.utc),
                 "api_key": api_key,
                 "endpoint": request.url.path,
                 "method": request.method,
