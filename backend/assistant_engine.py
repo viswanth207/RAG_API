@@ -85,9 +85,9 @@ class AssistantEngine:
             # 1. Similarity Search
             is_comparison = any(word in user_message.lower() for word in [
                 'highest', 'lowest', 'best', 'worst', 'maximum', 'minimum', 
-                'most', 'least', 'compare', 'all', 'which', 'many', 'count', 'total'
+                'most', 'least', 'compare', 'all', 'which', 'many', 'count', 'total', 'id', 'email', 'date', 'when', 'on', 'no of'
             ])
-            k_docs = 5 if is_comparison else 3
+            k_docs = 25 if is_comparison else 15
             
             logger.info(f"Performing similarity search for: {user_message[:50]}...")
             
@@ -143,9 +143,9 @@ class AssistantEngine:
             
             is_comparison = any(word in user_message.lower() for word in [
                 'highest', 'lowest', 'best', 'worst', 'maximum', 'minimum', 
-                'most', 'least', 'compare', 'all', 'which', 'many', 'count', 'total'
+                'most', 'least', 'compare', 'all', 'which', 'many', 'count', 'total', 'id', 'email', 'date', 'when', 'on', 'no of'
             ])
-            k_docs = 5 if is_comparison else 3
+            k_docs = 25 if is_comparison else 15
             
             relevant_docs = self.vector_store_manager.similarity_search(
                 vector_store=vector_store,
